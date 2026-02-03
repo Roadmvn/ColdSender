@@ -3,7 +3,7 @@ Modèles de données pour l'application Mail Sender.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from enum import Enum
 
 
@@ -16,13 +16,13 @@ class SendStatus(Enum):
 
 @dataclass
 class Recipient:
-    """Représente un destinataire."""
+    """Represente un destinataire."""
     email: str
     nom: str
     prenom: str
     numero: str
-    image_data: Optional[bytes] = None
-    image_name: Optional[str] = None
+    # Liste d'images: [(data, name), ...]
+    images: List[Tuple[bytes, str]] = field(default_factory=list)
     status: SendStatus = SendStatus.PENDING
     error: Optional[str] = None
 

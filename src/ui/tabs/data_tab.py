@@ -19,11 +19,11 @@ class DataTab:
     def __init__(self, parent: ctk.CTkFrame, app_data: AppState):
         self.parent = parent
         self.app_data = app_data
+        self.selected_image_index = None
         self._build()
 
     def _build(self):
         """Construit l'interface de l'onglet."""
-        # Container principal avec deux colonnes
         main_container = ctk.CTkFrame(self.parent, fg_color="transparent")
         main_container.pack(fill="both", expand=True, padx=20, pady=20)
 
@@ -34,8 +34,8 @@ class DataTab:
         self._build_import_section(left)
         self._build_preview_section(left)
 
-        # Colonne droite - Preview image
-        right = ctk.CTkFrame(main_container, width=280)
+        # Colonne droite - Preview images
+        right = ctk.CTkFrame(main_container, width=300)
         right.pack(side="right", fill="y", padx=(10, 0))
         right.pack_propagate(False)
 
@@ -84,7 +84,6 @@ class DataTab:
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="both", expand=True)
 
-        # Header avec titre et boutons
         header = ctk.CTkFrame(frame, fg_color="transparent")
         header.pack(fill="x", padx=20, pady=(15, 10))
 
@@ -94,7 +93,6 @@ class DataTab:
             font=("Segoe UI", 16, "bold")
         ).pack(side="left")
 
-        # Boutons de gestion
         btn_frame = ctk.CTkFrame(header, fg_color="transparent")
         btn_frame.pack(side="right")
 
@@ -131,7 +129,6 @@ class DataTab:
         tree_container = ctk.CTkFrame(frame, fg_color="white", corner_radius=8)
         tree_container.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
-        # Style du Treeview
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("Treeview", rowheight=28, font=("Segoe UI", 10))
@@ -140,7 +137,6 @@ class DataTab:
         self.tree = ttk.Treeview(tree_container, show="headings", height=12)
         self.tree.pack(fill="both", expand=True, padx=5, pady=5)
 
-        # Selection change pour preview image
         self.tree.bind("<<TreeviewSelect>>", self._on_selection_change)
         self.tree.bind("<Double-1>", lambda e: self._edit_recipient())
 
@@ -148,31 +144,29 @@ class DataTab:
         scrollbar.pack(side="right", fill="y")
         self.tree.configure(yscrollcommand=scrollbar.set)
 
-        # Initialiser les colonnes
-        columns = ['email', 'nom', 'prenom', 'numero', 'image']
+        columns = ['email', 'nom', 'prenom', 'numero', 'images']
         self.tree["columns"] = columns
 
         self.tree.heading('email', text='EMAIL')
         self.tree.heading('nom', text='NOM')
         self.tree.heading('prenom', text='PRENOM')
         self.tree.heading('numero', text='NUMERO')
-        self.tree.heading('image', text='IMAGE')
+        self.tree.heading('images', text='IMAGES')
 
         self.tree.column('email', width=180, anchor="w")
         self.tree.column('nom', width=100, anchor="w")
         self.tree.column('prenom', width=100, anchor="w")
         self.tree.column('numero', width=70, anchor="w")
-        self.tree.column('image', width=120, anchor="w")
+        self.tree.column('images', width=100, anchor="center")
 
     def _build_image_preview_section(self, parent: ctk.CTkFrame):
-        """Section preview de l'image du destinataire selectionne."""
+        """Section preview des images du destinataire selectionne."""
         ctk.CTkLabel(
             parent,
-            text="Image du destinataire",
+            text="Images du destinataire",
             font=("Segoe UI", 14, "bold")
         ).pack(anchor="w", padx=15, pady=(15, 10))
 
-        # Info
         self.selected_info = ctk.CTkLabel(
             parent,
             text="Selectionnez un destinataire",
@@ -181,47 +175,38 @@ class DataTab:
         )
         self.selected_info.pack(anchor="w", padx=15, pady=(0, 10))
 
-        # Zone preview image
-        self.image_preview_frame = ctk.CTkFrame(parent, fg_color=COLORS["light_gray"], corner_radius=8, height=180)
-        self.image_preview_frame.pack(fill="x", padx=15, pady=(0, 10))
-        self.image_preview_frame.pack_propagate(False)
+        # Zone scrollable pour les images
+        self.images_scroll = ctk.CTkScrollableFrame(
+            parent,
+            fg_color=COLORS["light_gray"],
+            corner_radius=8,
+            height=300
+        )
+        self.images_scroll.pack(fill="both", expand=True, padx=15, pady=(0, 10))
 
-        self.image_preview_label = ctk.CTkLabel(
-            self.image_preview_frame,
+        self.no_image_label = ctk.CTkLabel(
+            self.images_scroll,
             text="Aucune image",
             text_color=COLORS["gray"]
         )
-        self.image_preview_label.pack(expand=True)
+        self.no_image_label.pack(expand=True, pady=50)
 
-        # Boutons
-        btn_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=15, pady=(0, 15))
-
+        # Bouton ajouter
         ctk.CTkButton(
-            btn_frame,
-            text="Ajouter image",
-            width=120,
-            height=30,
+            parent,
+            text="+ Ajouter une image",
+            width=200,
+            height=35,
             fg_color=COLORS["primary"],
             command=self._add_image_to_selected
-        ).pack(side="left", padx=(0, 5))
-
-        ctk.CTkButton(
-            btn_frame,
-            text="Supprimer",
-            width=100,
-            height=30,
-            fg_color=COLORS["error"],
-            hover_color="#b91c1c",
-            command=self._remove_image_from_selected
-        ).pack(side="left")
+        ).pack(pady=(0, 15))
 
     def _on_selection_change(self, event):
         """Met a jour la preview quand la selection change."""
         selected = self.tree.selection()
         if not selected:
-            self.selected_info.configure(text="Selectionnez un destinataire")
-            self._clear_image_preview()
+            self.selected_info.configure(text="Selectionnez un destinataire", text_color=COLORS["gray"])
+            self._clear_images_preview()
             return
 
         item = selected[0]
@@ -233,53 +218,101 @@ class DataTab:
             text_color=COLORS["primary"]
         )
 
-        self._update_image_preview(recipient)
+        self._update_images_preview(recipient)
 
-    def _update_image_preview(self, recipient: Recipient):
-        """Met a jour la preview de l'image."""
+    def _update_images_preview(self, recipient: Recipient):
+        """Met a jour la preview des images."""
         # Nettoyer
-        for widget in self.image_preview_frame.winfo_children():
+        for widget in self.images_scroll.winfo_children():
             widget.destroy()
 
-        if recipient.image_data:
-            try:
-                img = Image.open(io.BytesIO(recipient.image_data))
-
-                # Redimensionner
-                max_size = 160
-                ratio = min(max_size / img.width, max_size / img.height)
-                new_size = (int(img.width * ratio), int(img.height * ratio))
-                img = img.resize(new_size, Image.Resampling.LANCZOS)
-
-                ctk_image = ctk.CTkImage(light_image=img, size=new_size)
-
-                label = ctk.CTkLabel(self.image_preview_frame, image=ctk_image, text="")
-                label.image = ctk_image
-                label.pack(expand=True, pady=10)
-
-            except Exception:
-                ctk.CTkLabel(
-                    self.image_preview_frame,
-                    text="Erreur image",
-                    text_color=COLORS["error"]
-                ).pack(expand=True)
-        else:
+        if not recipient.images:
             ctk.CTkLabel(
-                self.image_preview_frame,
-                text="Aucune image",
-                text_color=COLORS["gray"]
-            ).pack(expand=True)
+                self.images_scroll,
+                text="Aucune image\nCliquez sur '+ Ajouter une image'",
+                text_color=COLORS["gray"],
+                justify="center"
+            ).pack(expand=True, pady=50)
+            return
 
-    def _clear_image_preview(self):
+        # Afficher chaque image avec son bouton supprimer
+        for idx, (img_data, img_name) in enumerate(recipient.images):
+            self._create_image_card(idx, img_data, img_name, recipient)
+
+    def _create_image_card(self, idx: int, img_data: bytes, img_name: str, recipient: Recipient):
+        """Cree une carte pour une image."""
+        card = ctk.CTkFrame(self.images_scroll, fg_color="white", corner_radius=8)
+        card.pack(fill="x", padx=5, pady=5)
+
+        # Preview de l'image
+        try:
+            img = Image.open(io.BytesIO(img_data))
+            max_size = 100
+            ratio = min(max_size / img.width, max_size / img.height)
+            new_size = (int(img.width * ratio), int(img.height * ratio))
+            img = img.resize(new_size, Image.Resampling.LANCZOS)
+
+            ctk_image = ctk.CTkImage(light_image=img, size=new_size)
+
+            img_label = ctk.CTkLabel(card, image=ctk_image, text="")
+            img_label.image = ctk_image
+            img_label.pack(side="left", padx=10, pady=10)
+
+        except Exception:
+            ctk.CTkLabel(
+                card,
+                text="[Erreur]",
+                text_color=COLORS["error"],
+                width=100
+            ).pack(side="left", padx=10, pady=10)
+
+        # Info et bouton supprimer
+        info_frame = ctk.CTkFrame(card, fg_color="transparent")
+        info_frame.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+
+        ctk.CTkLabel(
+            info_frame,
+            text=img_name[:20] + "..." if len(img_name) > 20 else img_name,
+            font=("Segoe UI", 11),
+            anchor="w"
+        ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            info_frame,
+            text=f"Image {idx + 1}",
+            font=("Segoe UI", 10),
+            text_color=COLORS["gray"],
+            anchor="w"
+        ).pack(anchor="w")
+
+        # Bouton supprimer
+        ctk.CTkButton(
+            card,
+            text="X",
+            width=30,
+            height=30,
+            fg_color=COLORS["error"],
+            hover_color="#b91c1c",
+            command=lambda i=idx, r=recipient: self._remove_image(r, i)
+        ).pack(side="right", padx=10, pady=10)
+
+    def _remove_image(self, recipient: Recipient, index: int):
+        """Supprime une image specifique."""
+        if 0 <= index < len(recipient.images):
+            del recipient.images[index]
+            self._update_preview()
+            self._update_images_preview(recipient)
+
+    def _clear_images_preview(self):
         """Efface la preview."""
-        for widget in self.image_preview_frame.winfo_children():
+        for widget in self.images_scroll.winfo_children():
             widget.destroy()
 
         ctk.CTkLabel(
-            self.image_preview_frame,
+            self.images_scroll,
             text="Aucune image",
             text_color=COLORS["gray"]
-        ).pack(expand=True)
+        ).pack(expand=True, pady=50)
 
     def _add_image_to_selected(self):
         """Ajoute une image au destinataire selectionne."""
@@ -288,43 +321,26 @@ class DataTab:
             messagebox.showwarning("Attention", "Selectionnez un destinataire")
             return
 
-        file = filedialog.askopenfilename(
-            filetypes=[("Images", "*.png *.jpg *.jpeg *.gif")]
+        files = filedialog.askopenfilenames(
+            filetypes=[("Images", "*.png *.jpg *.jpeg *.gif")],
+            title="Selectionner une ou plusieurs images"
         )
-        if file:
-            try:
-                with open(file, 'rb') as f:
-                    image_data = f.read()
+        if files:
+            item = selected[0]
+            index = self.tree.index(item)
+            recipient = self.app_data.recipients[index]
 
-                item = selected[0]
-                index = self.tree.index(item)
-                recipient = self.app_data.recipients[index]
+            for file in files:
+                try:
+                    with open(file, 'rb') as f:
+                        image_data = f.read()
+                    image_name = os.path.basename(file)
+                    recipient.images.append((image_data, image_name))
+                except Exception as e:
+                    messagebox.showerror("Erreur", f"Impossible de charger {file}: {e}")
 
-                recipient.image_data = image_data
-                recipient.image_name = os.path.basename(file)
-
-                self._update_preview()
-                self._update_image_preview(recipient)
-
-            except Exception as e:
-                messagebox.showerror("Erreur", f"Impossible de charger l'image: {e}")
-
-    def _remove_image_from_selected(self):
-        """Supprime l'image du destinataire selectionne."""
-        selected = self.tree.selection()
-        if not selected:
-            messagebox.showwarning("Attention", "Selectionnez un destinataire")
-            return
-
-        item = selected[0]
-        index = self.tree.index(item)
-        recipient = self.app_data.recipients[index]
-
-        recipient.image_data = None
-        recipient.image_name = None
-
-        self._update_preview()
-        self._update_image_preview(recipient)
+            self._update_preview()
+            self._update_images_preview(recipient)
 
     def _download_template(self):
         """Telecharge le fichier template."""
@@ -364,8 +380,9 @@ class DataTab:
             self.tree.delete(item)
 
         for r in self.app_data.recipients:
-            image_status = r.image_name if r.image_name else "---"
-            self.tree.insert("", "end", values=(r.email, r.nom, r.prenom, r.numero, image_status))
+            img_count = len(r.images)
+            img_status = f"{img_count} image(s)" if img_count > 0 else "---"
+            self.tree.insert("", "end", values=(r.email, r.nom, r.prenom, r.numero, img_status))
 
         self.import_status.configure(
             text=f"{len(self.app_data.recipients)} destinataires",
@@ -408,7 +425,7 @@ class DataTab:
             for idx in indices:
                 del self.app_data.recipients[idx]
             self._update_preview()
-            self._clear_image_preview()
+            self._clear_images_preview()
 
 
 class RecipientDialog(ctk.CTkToplevel):
@@ -418,11 +435,11 @@ class RecipientDialog(ctk.CTkToplevel):
         super().__init__(parent)
         self.result = None
         self.recipient = recipient
-        self.image_data = recipient.image_data if recipient else None
-        self.image_name = recipient.image_name if recipient else None
+        # Copier les images existantes ou liste vide
+        self.images = list(recipient.images) if recipient and recipient.images else []
 
         self.title(title)
-        self.geometry("420x480")
+        self.geometry("450x550")
         self.resizable(False, False)
 
         self.transient(parent)
@@ -431,8 +448,8 @@ class RecipientDialog(ctk.CTkToplevel):
         self._build_ui()
 
         self.update_idletasks()
-        x = parent.winfo_rootx() + (parent.winfo_width() - 420) // 2
-        y = parent.winfo_rooty() + (parent.winfo_height() - 480) // 2
+        x = parent.winfo_rootx() + (parent.winfo_width() - 450) // 2
+        y = parent.winfo_rooty() + (parent.winfo_height() - 550) // 2
         self.geometry(f"+{x}+{y}")
 
         self.wait_window()
@@ -440,37 +457,37 @@ class RecipientDialog(ctk.CTkToplevel):
     def _build_ui(self):
         """Construit l'interface du dialog."""
         ctk.CTkLabel(self, text="Email", font=("Segoe UI", 12)).pack(anchor="w", padx=20, pady=(20, 5))
-        self.email_entry = ctk.CTkEntry(self, width=380, height=35)
+        self.email_entry = ctk.CTkEntry(self, width=410, height=35)
         self.email_entry.pack(padx=20)
 
         ctk.CTkLabel(self, text="Nom", font=("Segoe UI", 12)).pack(anchor="w", padx=20, pady=(10, 5))
-        self.nom_entry = ctk.CTkEntry(self, width=380, height=35)
+        self.nom_entry = ctk.CTkEntry(self, width=410, height=35)
         self.nom_entry.pack(padx=20)
 
         ctk.CTkLabel(self, text="Prenom", font=("Segoe UI", 12)).pack(anchor="w", padx=20, pady=(10, 5))
-        self.prenom_entry = ctk.CTkEntry(self, width=380, height=35)
+        self.prenom_entry = ctk.CTkEntry(self, width=410, height=35)
         self.prenom_entry.pack(padx=20)
 
         ctk.CTkLabel(self, text="Numero", font=("Segoe UI", 12)).pack(anchor="w", padx=20, pady=(10, 5))
-        self.numero_entry = ctk.CTkEntry(self, width=380, height=35)
+        self.numero_entry = ctk.CTkEntry(self, width=410, height=35)
         self.numero_entry.pack(padx=20)
 
-        # Section image
-        ctk.CTkLabel(self, text="Image personnalisee", font=("Segoe UI", 12)).pack(anchor="w", padx=20, pady=(15, 5))
+        # Section images
+        ctk.CTkLabel(self, text="Images personnalisees", font=("Segoe UI", 12)).pack(anchor="w", padx=20, pady=(15, 5))
 
         img_frame = ctk.CTkFrame(self, fg_color="transparent")
         img_frame.pack(fill="x", padx=20)
 
         ctk.CTkButton(
             img_frame,
-            text="Choisir image",
-            width=120,
-            command=self._pick_image
+            text="+ Ajouter images",
+            width=140,
+            command=self._pick_images
         ).pack(side="left", padx=(0, 10))
 
         self.image_status = ctk.CTkLabel(
             img_frame,
-            text="Aucune",
+            text="0 image(s)",
             text_color=COLORS["gray"]
         )
         self.image_status.pack(side="left")
@@ -481,8 +498,7 @@ class RecipientDialog(ctk.CTkToplevel):
             self.nom_entry.insert(0, self.recipient.nom)
             self.prenom_entry.insert(0, self.recipient.prenom)
             self.numero_entry.insert(0, self.recipient.numero)
-            if self.recipient.image_name:
-                self.image_status.configure(text=self.recipient.image_name, text_color=COLORS["success"])
+            self._update_image_status()
 
         # Boutons
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -504,19 +520,34 @@ class RecipientDialog(ctk.CTkToplevel):
             command=self._validate
         ).pack(side="right")
 
-    def _pick_image(self):
-        """Selectionne une image."""
-        file = filedialog.askopenfilename(
+    def _pick_images(self):
+        """Selectionne des images."""
+        files = filedialog.askopenfilenames(
             filetypes=[("Images", "*.png *.jpg *.jpeg *.gif")]
         )
-        if file:
+        for file in files:
             try:
                 with open(file, 'rb') as f:
-                    self.image_data = f.read()
-                self.image_name = os.path.basename(file)
-                self.image_status.configure(text=self.image_name, text_color=COLORS["success"])
+                    img_data = f.read()
+                img_name = os.path.basename(file)
+                self.images.append((img_data, img_name))
             except Exception:
-                self.image_status.configure(text="Erreur", text_color=COLORS["error"])
+                pass
+        self._update_image_status()
+
+    def _update_image_status(self):
+        """Met a jour le statut des images."""
+        count = len(self.images)
+        if count > 0:
+            self.image_status.configure(
+                text=f"{count} image(s)",
+                text_color=COLORS["success"]
+            )
+        else:
+            self.image_status.configure(
+                text="0 image(s)",
+                text_color=COLORS["gray"]
+            )
 
     def _validate(self):
         """Valide et ferme le dialog."""
@@ -534,7 +565,6 @@ class RecipientDialog(ctk.CTkToplevel):
             nom=nom,
             prenom=prenom,
             numero=numero,
-            image_data=self.image_data,
-            image_name=self.image_name
+            images=self.images
         )
         self.destroy()
