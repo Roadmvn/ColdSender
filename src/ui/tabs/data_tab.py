@@ -329,7 +329,7 @@ class RecipientDialog(ctk.CTkToplevel):
         self.recipient = recipient
 
         self.title(title)
-        self.geometry("400x300")
+        self.geometry("400x380")
         self.resizable(False, False)
 
         # Rendre modal
@@ -341,7 +341,7 @@ class RecipientDialog(ctk.CTkToplevel):
         # Centrer
         self.update_idletasks()
         x = parent.winfo_rootx() + (parent.winfo_width() - 400) // 2
-        y = parent.winfo_rooty() + (parent.winfo_height() - 300) // 2
+        y = parent.winfo_rooty() + (parent.winfo_height() - 380) // 2
         self.geometry(f"+{x}+{y}")
 
         self.wait_window()
