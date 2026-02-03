@@ -35,7 +35,8 @@ python -m PyInstaller --onefile --windowed --name "MailSender" ^
     --hidden-import=pandas ^
     --hidden-import=openpyxl ^
     --collect-all customtkinter ^
-    app.py
+    --add-data "src;src" ^
+    main.py
 
 echo.
 echo ----------------------------------------

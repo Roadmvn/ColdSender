@@ -24,7 +24,7 @@ if errorlevel 1 (
 )
 
 echo Lancement...
-python app.py
+python main.py
 
 if errorlevel 1 (
     echo.

@@ -1,0 +1,59 @@
+"""
+Modèles de données pour l'application Mail Sender.
+"""
+
+from dataclasses import dataclass, field
+from typing import Optional, Dict, List
+from enum import Enum
+
+
+class SendStatus(Enum):
+    """Statut d'envoi d'un email."""
+    PENDING = "pending"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+@dataclass
+class Recipient:
+    """Représente un destinataire."""
+    email: str
+    nom: str
+    prenom: str
+    numero: str
+    status: SendStatus = SendStatus.PENDING
+    error: Optional[str] = None
+
+
+@dataclass
+class SMTPConfig:
+    """Configuration du serveur SMTP."""
+    server: str = "smtp.gmail.com"
+    port: int = 587
+    email: str = ""
+    password: str = ""
+
+    def is_valid(self) -> bool:
+        """Vérifie si la configuration est complète."""
+        return all([self.server, self.email, self.password])
+
+
+@dataclass
+class AppState:
+    """État global de l'application."""
+    smtp: SMTPConfig = field(default_factory=SMTPConfig)
+    recipients: List[Recipient] = field(default_factory=list)
+    subject: str = "Invitation - {{prenom}} {{nom}}"
+    body: str = """Bonjour {{prenom}} {{nom}},
+
+Vous êtes cordialement invité(e) à notre événement !
+
+Votre numéro d'enregistrement : {{numero}}
+
+Merci de conserver ce numéro, il vous sera demandé à l'entrée.
+
+À très bientôt !
+
+L'équipe organisatrice"""
+    default_image: Optional[bytes] = None
+    custom_images: Dict[str, bytes] = field(default_factory=dict)
