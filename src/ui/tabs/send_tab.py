@@ -145,7 +145,8 @@ class SendTab:
         """Met à jour le résumé."""
         count = len(self.app_data.recipients)
         has_img = "Oui" if self.app_data.default_image else "Non"
-        custom_count = len(self.app_data.custom_images)
+        # Compter les destinataires avec une image personnalisée
+        custom_count = sum(1 for r in self.app_data.recipients if r.image_data)
 
         self.summary_text.configure(
             text=f"{count} destinataires  |  Image: {has_img}  |  Images perso: {custom_count}"
@@ -245,11 +246,8 @@ class SendTab:
             total = len(self.app_data.recipients)
 
             for idx, recipient in enumerate(self.app_data.recipients):
-                # Image personnalisée ou par défaut
-                img = self.app_data.custom_images.get(
-                    recipient.email,
-                    self.app_data.default_image
-                )
+                # Image personnalisée du destinataire ou image par défaut
+                img = recipient.image_data if recipient.image_data else self.app_data.default_image
 
                 success, error = EmailService.send(config, recipient, subject, body, img)
 

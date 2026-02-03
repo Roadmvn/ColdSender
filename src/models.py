@@ -3,7 +3,7 @@ Modèles de données pour l'application Mail Sender.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Dict, List
+from typing import Optional, List
 from enum import Enum
 
 
@@ -21,6 +21,8 @@ class Recipient:
     nom: str
     prenom: str
     numero: str
+    image_data: Optional[bytes] = None
+    image_name: Optional[str] = None
     status: SendStatus = SendStatus.PENDING
     error: Optional[str] = None
 
@@ -56,4 +58,3 @@ Merci de conserver ce numéro, il vous sera demandé à l'entrée.
 
 L'équipe organisatrice"""
     default_image: Optional[bytes] = None
-    custom_images: Dict[str, bytes] = field(default_factory=dict)
