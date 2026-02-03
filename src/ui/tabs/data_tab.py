@@ -1,10 +1,9 @@
 """
-Onglet Données - Import des destinataires et images.
+Onglet Données - Import et gestion des destinataires.
 """
 
-import os
 import customtkinter as ctk
-from tkinter import filedialog, ttk, simpledialog, messagebox
+from tkinter import filedialog, ttk, messagebox
 
 from ...config import COLORS
 from ...models import AppState, Recipient
@@ -21,19 +20,11 @@ class DataTab:
 
     def _build(self):
         """Construit l'interface de l'onglet."""
-        # Panneau gauche
-        left = ctk.CTkFrame(self.parent, fg_color="transparent")
-        left.pack(side="left", fill="both", expand=True, padx=(0, 10), pady=10)
+        container = ctk.CTkFrame(self.parent, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=20, pady=20)
 
-        self._build_import_section(left)
-        self._build_preview_section(left)
-
-        # Panneau droit - Images
-        right = ctk.CTkFrame(self.parent, width=350)
-        right.pack(side="right", fill="y", padx=(10, 0), pady=10)
-        right.pack_propagate(False)
-
-        self._build_images_section(right)
+        self._build_import_section(container)
+        self._build_preview_section(container)
 
     def _build_import_section(self, parent: ctk.CTkFrame):
         """Section d'import des fichiers."""
@@ -131,7 +122,7 @@ class DataTab:
         style.configure("Treeview", rowheight=30, font=("Segoe UI", 10))
         style.configure("Treeview.Heading", font=("Segoe UI", 11, "bold"))
 
-        self.tree = ttk.Treeview(tree_container, show="headings", height=10)
+        self.tree = ttk.Treeview(tree_container, show="headings", height=15)
         self.tree.pack(fill="both", expand=True, padx=5, pady=5)
 
         # Double-clic pour editer
@@ -146,65 +137,7 @@ class DataTab:
         self.tree["columns"] = columns
         for col in columns:
             self.tree.heading(col, text=col.upper())
-            self.tree.column(col, width=150, anchor="w")
-
-    def _build_images_section(self, parent: ctk.CTkFrame):
-        """Section de gestion des images."""
-        ctk.CTkLabel(
-            parent,
-            text="Images (optionnel)",
-            font=("Segoe UI", 16, "bold")
-        ).pack(anchor="w", padx=20, pady=(15, 15))
-
-        # Image par défaut
-        section1 = ctk.CTkFrame(parent, fg_color=COLORS["light_gray"], corner_radius=8)
-        section1.pack(fill="x", padx=20, pady=(0, 15))
-
-        ctk.CTkLabel(
-            section1,
-            text="Image par defaut",
-            font=("Segoe UI", 12, "bold")
-        ).pack(anchor="w", padx=15, pady=(15, 5))
-
-        ctk.CTkButton(
-            section1,
-            text="Choisir une image",
-            width=200,
-            command=self._pick_default_image
-        ).pack(anchor="w", padx=15, pady=10)
-
-        self.default_img_status = ctk.CTkLabel(
-            section1,
-            text="Aucune",
-            text_color=COLORS["gray"],
-            font=("Segoe UI", 11)
-        )
-        self.default_img_status.pack(anchor="w", padx=15, pady=(0, 15))
-
-        # Images personnalisées
-        section2 = ctk.CTkFrame(parent, fg_color=COLORS["light_gray"], corner_radius=8)
-        section2.pack(fill="x", padx=20)
-
-        ctk.CTkLabel(
-            section2,
-            text="Images personnalisees (ZIP)",
-            font=("Segoe UI", 12, "bold")
-        ).pack(anchor="w", padx=15, pady=(15, 5))
-
-        ctk.CTkButton(
-            section2,
-            text="Choisir un ZIP",
-            width=200,
-            command=self._pick_zip
-        ).pack(anchor="w", padx=15, pady=10)
-
-        self.custom_img_status = ctk.CTkLabel(
-            section2,
-            text="Aucun",
-            text_color=COLORS["gray"],
-            font=("Segoe UI", 11)
-        )
-        self.custom_img_status.pack(anchor="w", padx=15, pady=(0, 15))
+            self.tree.column(col, width=200, anchor="w")
 
     def _download_template(self):
         """Télécharge le fichier template."""
@@ -265,7 +198,6 @@ class DataTab:
             messagebox.showwarning("Attention", "Selectionne un destinataire a modifier")
             return
 
-        # Trouver l'index
         item = selected[0]
         index = self.tree.index(item)
         recipient = self.app_data.recipients[index]
@@ -283,41 +215,10 @@ class DataTab:
             return
 
         if messagebox.askyesno("Confirmer", f"Supprimer {len(selected)} destinataire(s) ?"):
-            # Supprimer en ordre inverse pour garder les indices valides
             indices = sorted([self.tree.index(item) for item in selected], reverse=True)
             for idx in indices:
                 del self.app_data.recipients[idx]
             self._update_preview()
-
-    def _pick_default_image(self):
-        """Sélectionne l'image par défaut."""
-        file = filedialog.askopenfilename(
-            filetypes=[("Images", "*.png *.jpg *.jpeg *.gif")]
-        )
-        if file:
-            try:
-                with open(file, 'rb') as f:
-                    self.app_data.default_image = f.read()
-                self.default_img_status.configure(
-                    text=f"OK: {os.path.basename(file)}",
-                    text_color=COLORS["success"]
-                )
-            except Exception:
-                self.default_img_status.configure(text="Erreur", text_color=COLORS["error"])
-
-    def _pick_zip(self):
-        """Sélectionne un fichier ZIP d'images."""
-        file = filedialog.askopenfilename(filetypes=[("ZIP", "*.zip")])
-        if file:
-            images, error = DataService.load_images_zip(file)
-            if error:
-                self.custom_img_status.configure(text="Erreur", text_color=COLORS["error"])
-            else:
-                self.app_data.custom_images = images
-                self.custom_img_status.configure(
-                    text=f"OK: {len(images)} images",
-                    text_color=COLORS["success"]
-                )
 
 
 class RecipientDialog(ctk.CTkToplevel):
@@ -332,13 +233,11 @@ class RecipientDialog(ctk.CTkToplevel):
         self.geometry("400x380")
         self.resizable(False, False)
 
-        # Rendre modal
         self.transient(parent)
         self.grab_set()
 
         self._build_ui()
 
-        # Centrer
         self.update_idletasks()
         x = parent.winfo_rootx() + (parent.winfo_width() - 400) // 2
         y = parent.winfo_rooty() + (parent.winfo_height() - 380) // 2
@@ -348,34 +247,28 @@ class RecipientDialog(ctk.CTkToplevel):
 
     def _build_ui(self):
         """Construit l'interface du dialog."""
-        # Email
         ctk.CTkLabel(self, text="Email", font=("Segoe UI", 12)).pack(anchor="w", padx=20, pady=(20, 5))
         self.email_entry = ctk.CTkEntry(self, width=360, height=35)
         self.email_entry.pack(padx=20)
 
-        # Nom
         ctk.CTkLabel(self, text="Nom", font=("Segoe UI", 12)).pack(anchor="w", padx=20, pady=(10, 5))
         self.nom_entry = ctk.CTkEntry(self, width=360, height=35)
         self.nom_entry.pack(padx=20)
 
-        # Prenom
         ctk.CTkLabel(self, text="Prenom", font=("Segoe UI", 12)).pack(anchor="w", padx=20, pady=(10, 5))
         self.prenom_entry = ctk.CTkEntry(self, width=360, height=35)
         self.prenom_entry.pack(padx=20)
 
-        # Numero
         ctk.CTkLabel(self, text="Numero", font=("Segoe UI", 12)).pack(anchor="w", padx=20, pady=(10, 5))
         self.numero_entry = ctk.CTkEntry(self, width=360, height=35)
         self.numero_entry.pack(padx=20)
 
-        # Pré-remplir si modification
         if self.recipient:
             self.email_entry.insert(0, self.recipient.email)
             self.nom_entry.insert(0, self.recipient.nom)
             self.prenom_entry.insert(0, self.recipient.prenom)
             self.numero_entry.insert(0, self.recipient.numero)
 
-        # Boutons
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.pack(fill="x", padx=20, pady=20)
 

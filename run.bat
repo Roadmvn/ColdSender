@@ -19,7 +19,7 @@ REM Verifier si les dependances sont installees
 python -c "import customtkinter" 2>nul
 if errorlevel 1 (
     echo Installation des dependances...
-    python -m pip install customtkinter pandas openpyxl
+    python -m pip install customtkinter pandas openpyxl Pillow
     echo.
 )
 

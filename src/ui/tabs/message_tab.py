@@ -1,8 +1,12 @@
 """
-Onglet Message - Rédaction du message et configuration SMTP.
+Onglet Message - Rédaction du message, image et configuration SMTP.
 """
 
+import os
+import io
 import customtkinter as ctk
+from tkinter import filedialog
+from PIL import Image, ImageTk
 
 from ...config import COLORS, SMTP_PROVIDERS
 from ...models import AppState, Recipient
@@ -15,6 +19,7 @@ class MessageTab:
     def __init__(self, parent: ctk.CTkFrame, app_data: AppState):
         self.parent = parent
         self.app_data = app_data
+        self.preview_image_label = None
         self._build()
 
     def _build(self):
@@ -22,11 +27,12 @@ class MessageTab:
         container = ctk.CTkFrame(self.parent, fg_color="transparent")
         container.pack(fill="both", expand=True, padx=20, pady=20)
 
-        # Panneau gauche - Message + Preview
+        # Panneau gauche - Message + Image + Preview
         left = ctk.CTkFrame(container)
         left.pack(side="left", fill="both", expand=True, padx=(0, 10))
 
         self._build_message_section(left)
+        self._build_image_section(left)
         self._build_preview_section(left)
 
         # Panneau droit - SMTP
@@ -42,17 +48,17 @@ class MessageTab:
             parent,
             text="Rediger le message",
             font=("Segoe UI", 16, "bold")
-        ).pack(anchor="w", padx=20, pady=(20, 10))
+        ).pack(anchor="w", padx=20, pady=(15, 8))
 
         # Info variables
         info = ctk.CTkFrame(parent, fg_color="#fef3c7", corner_radius=8)
-        info.pack(fill="x", padx=20, pady=(0, 10))
+        info.pack(fill="x", padx=20, pady=(0, 8))
         ctk.CTkLabel(
             info,
             text="Variables : {{nom}}  {{prenom}}  {{numero}}  {{email}}",
             font=("Segoe UI", 11),
             text_color="#92400e"
-        ).pack(padx=15, pady=8)
+        ).pack(padx=15, pady=6)
 
         # Objet
         ctk.CTkLabel(
@@ -61,8 +67,8 @@ class MessageTab:
             font=("Segoe UI", 12, "bold")
         ).pack(anchor="w", padx=20)
 
-        self.subject_entry = ctk.CTkEntry(parent, height=35, font=("Segoe UI", 12))
-        self.subject_entry.pack(fill="x", padx=20, pady=(5, 10))
+        self.subject_entry = ctk.CTkEntry(parent, height=32, font=("Segoe UI", 12))
+        self.subject_entry.pack(fill="x", padx=20, pady=(3, 8))
         self.subject_entry.insert(0, self.app_data.subject)
 
         # Corps
@@ -72,15 +78,78 @@ class MessageTab:
             font=("Segoe UI", 12, "bold")
         ).pack(anchor="w", padx=20)
 
-        self.body_text = ctk.CTkTextbox(parent, font=("Segoe UI", 12), wrap="word", height=200)
-        self.body_text.pack(fill="x", padx=20, pady=(5, 10))
+        self.body_text = ctk.CTkTextbox(parent, font=("Segoe UI", 12), wrap="word", height=120)
+        self.body_text.pack(fill="x", padx=20, pady=(3, 8))
         self.body_text.insert("1.0", self.app_data.body)
+
+    def _build_image_section(self, parent: ctk.CTkFrame):
+        """Section de selection d'image."""
+        frame = ctk.CTkFrame(parent, fg_color=COLORS["light_gray"], corner_radius=8)
+        frame.pack(fill="x", padx=20, pady=(0, 8))
+
+        header = ctk.CTkFrame(frame, fg_color="transparent")
+        header.pack(fill="x", padx=15, pady=(10, 5))
+
+        ctk.CTkLabel(
+            header,
+            text="Image jointe (optionnel)",
+            font=("Segoe UI", 12, "bold")
+        ).pack(side="left")
+
+        ctk.CTkButton(
+            header,
+            text="Choisir",
+            width=80,
+            height=28,
+            command=self._pick_image
+        ).pack(side="right", padx=(5, 0))
+
+        ctk.CTkButton(
+            header,
+            text="Supprimer",
+            width=80,
+            height=28,
+            fg_color=COLORS["error"],
+            hover_color="#b91c1c",
+            command=self._remove_image
+        ).pack(side="right")
+
+        self.image_status = ctk.CTkLabel(
+            frame,
+            text="Aucune image",
+            font=("Segoe UI", 11),
+            text_color=COLORS["gray"]
+        )
+        self.image_status.pack(anchor="w", padx=15, pady=(0, 10))
+
+    def _pick_image(self):
+        """Selectionne une image."""
+        file = filedialog.askopenfilename(
+            filetypes=[("Images", "*.png *.jpg *.jpeg *.gif")]
+        )
+        if file:
+            try:
+                with open(file, 'rb') as f:
+                    self.app_data.default_image = f.read()
+                self.image_status.configure(
+                    text=f"Image: {os.path.basename(file)}",
+                    text_color=COLORS["success"]
+                )
+                self._update_preview()
+            except Exception:
+                self.image_status.configure(text="Erreur", text_color=COLORS["error"])
+
+    def _remove_image(self):
+        """Supprime l'image."""
+        self.app_data.default_image = None
+        self.image_status.configure(text="Aucune image", text_color=COLORS["gray"])
+        self._update_preview()
 
     def _build_preview_section(self, parent: ctk.CTkFrame):
         """Section de preview du mail."""
         # Header avec bouton
         header = ctk.CTkFrame(parent, fg_color="transparent")
-        header.pack(fill="x", padx=20, pady=(10, 5))
+        header.pack(fill="x", padx=20, pady=(5, 3))
 
         ctk.CTkLabel(
             header,
@@ -91,38 +160,51 @@ class MessageTab:
         ctk.CTkButton(
             header,
             text="Actualiser",
-            width=100,
-            height=28,
+            width=90,
+            height=26,
             fg_color=COLORS["primary"],
             command=self._update_preview
         ).pack(side="right")
 
-        # Zone de preview
+        # Zone de preview avec scroll
         preview_frame = ctk.CTkFrame(parent, fg_color="#f8fafc", corner_radius=8)
-        preview_frame.pack(fill="both", expand=True, padx=20, pady=(0, 15))
+        preview_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
 
         # Objet preview
         self.preview_subject = ctk.CTkLabel(
             preview_frame,
             text="Objet: ---",
-            font=("Segoe UI", 12, "bold"),
+            font=("Segoe UI", 11, "bold"),
             text_color=COLORS["primary"],
             anchor="w"
         )
-        self.preview_subject.pack(fill="x", padx=15, pady=(15, 5))
+        self.preview_subject.pack(fill="x", padx=12, pady=(10, 3))
 
         # Separateur
-        ctk.CTkFrame(preview_frame, height=1, fg_color="#e2e8f0").pack(fill="x", padx=15, pady=5)
+        ctk.CTkFrame(preview_frame, height=1, fg_color="#e2e8f0").pack(fill="x", padx=12, pady=3)
+
+        # Scrollable frame pour body + image
+        self.preview_scroll = ctk.CTkScrollableFrame(
+            preview_frame,
+            fg_color="#f8fafc",
+            corner_radius=0
+        )
+        self.preview_scroll.pack(fill="both", expand=True, padx=5, pady=(0, 10))
 
         # Corps preview
-        self.preview_body = ctk.CTkTextbox(
-            preview_frame,
-            font=("Segoe UI", 11),
-            wrap="word",
-            fg_color="#f8fafc",
-            state="disabled"
+        self.preview_body = ctk.CTkLabel(
+            self.preview_scroll,
+            text="",
+            font=("Segoe UI", 10),
+            anchor="nw",
+            justify="left",
+            wraplength=500
         )
-        self.preview_body.pack(fill="both", expand=True, padx=15, pady=(5, 15))
+        self.preview_body.pack(fill="x", padx=8, pady=(5, 10))
+
+        # Image preview placeholder
+        self.preview_image_container = ctk.CTkFrame(self.preview_scroll, fg_color="transparent")
+        self.preview_image_container.pack(fill="x", padx=8, pady=(0, 10))
 
     def _update_preview(self):
         """Met à jour la preview avec le premier destinataire ou des données exemple."""
@@ -143,11 +225,43 @@ class MessageTab:
 
         # Mettre à jour l'affichage
         self.preview_subject.configure(text=f"Objet: {subject}")
+        self.preview_body.configure(text=body)
 
-        self.preview_body.configure(state="normal")
-        self.preview_body.delete("1.0", "end")
-        self.preview_body.insert("1.0", body)
-        self.preview_body.configure(state="disabled")
+        # Mettre à jour l'image
+        for widget in self.preview_image_container.winfo_children():
+            widget.destroy()
+
+        if self.app_data.default_image:
+            try:
+                # Charger et redimensionner l'image
+                img = Image.open(io.BytesIO(self.app_data.default_image))
+
+                # Redimensionner pour tenir dans la preview (max 400px de large)
+                max_width = 400
+                if img.width > max_width:
+                    ratio = max_width / img.width
+                    new_size = (max_width, int(img.height * ratio))
+                    img = img.resize(new_size, Image.Resampling.LANCZOS)
+
+                # Convertir en CTkImage
+                ctk_image = ctk.CTkImage(light_image=img, size=(img.width, img.height))
+
+                # Afficher
+                img_label = ctk.CTkLabel(
+                    self.preview_image_container,
+                    image=ctk_image,
+                    text=""
+                )
+                img_label.image = ctk_image  # Garder une reference
+                img_label.pack(pady=(5, 0))
+
+            except Exception as e:
+                error_label = ctk.CTkLabel(
+                    self.preview_image_container,
+                    text=f"Erreur image: {e}",
+                    text_color=COLORS["error"]
+                )
+                error_label.pack()
 
     def _build_smtp_section(self, parent: ctk.CTkFrame):
         """Section de configuration SMTP."""
