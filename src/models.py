@@ -36,8 +36,19 @@ class SMTPConfig:
     password: str = ""
 
     def is_valid(self) -> bool:
-        """Vérifie si la configuration est complète."""
+        """Verifie si la configuration est complete."""
         return all([self.server, self.email, self.password])
+
+
+@dataclass
+class SendGridConfig:
+    """Configuration SendGrid API."""
+    api_key: str = ""
+    from_email: str = ""
+
+    def is_valid(self) -> bool:
+        """Verifie si la configuration est complete."""
+        return all([self.api_key, self.from_email])
 
 
 @dataclass

@@ -20,7 +20,7 @@ echo   [1/4] Installation des outils
 echo ----------------------------------------
 echo.
 
-python -m pip install customtkinter pandas openpyxl pyinstaller
+python -m pip install customtkinter pandas openpyxl Pillow sendgrid pyinstaller
 
 echo.
 echo ----------------------------------------
@@ -30,10 +30,13 @@ echo.
 echo Cela peut prendre 2-3 minutes...
 echo.
 
-python -m PyInstaller --onefile --windowed --name "MailSender" ^
+python -m PyInstaller --onefile --windowed --name "ColdSender" ^
     --hidden-import=customtkinter ^
     --hidden-import=pandas ^
     --hidden-import=openpyxl ^
+    --hidden-import=PIL ^
+    --hidden-import=PIL.Image ^
+    --hidden-import=sendgrid ^
     --collect-all customtkinter ^
     --add-data "src;src" ^
     main.py
@@ -43,7 +46,7 @@ echo ----------------------------------------
 echo   [3/4] Nettoyage
 echo ----------------------------------------
 rmdir /s /q build 2>nul
-del MailSender.spec 2>nul
+del ColdSender.spec 2>nul
 echo OK
 
 echo.
@@ -51,6 +54,9 @@ echo ========================================
 echo   [4/4] BUILD TERMINE !
 echo ========================================
 echo.
-echo L'executable: dist\MailSender.exe
+echo L'executable se trouve ici:
+echo   dist\ColdSender.exe
+echo.
+echo Tu peux envoyer ce fichier a ton pote !
 echo.
 pause

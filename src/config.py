@@ -2,13 +2,19 @@
 Configuration de l'application.
 """
 
-# Fournisseurs SMTP supportés
+# Fournisseurs SMTP supportes
 SMTP_PROVIDERS = {
     "Gmail": ("smtp.gmail.com", 587),
     "Outlook/Hotmail": ("smtp-mail.outlook.com", 587),
     "Yahoo": ("smtp.mail.yahoo.com", 587),
     "Autre": ("", 587),
 }
+
+# Fournisseurs API (pas de SMTP)
+API_PROVIDERS = ["SendGrid"]
+
+# Tous les fournisseurs
+ALL_PROVIDERS = list(SMTP_PROVIDERS.keys()) + API_PROVIDERS
 
 # Couleurs du thème
 COLORS = {

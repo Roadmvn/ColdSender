@@ -1,5 +1,5 @@
 """
-Onglet Message - Rédaction du message, image et configuration SMTP.
+Onglet Message - Redaction du message, image et configuration email.
 """
 
 import os
@@ -8,13 +8,13 @@ import customtkinter as ctk
 from tkinter import filedialog
 from PIL import Image, ImageTk
 
-from ...config import COLORS, SMTP_PROVIDERS
+from ...config import COLORS, SMTP_PROVIDERS, API_PROVIDERS, ALL_PROVIDERS
 from ...models import AppState, Recipient
 from ...services import EmailService
 
 
 class MessageTab:
-    """Onglet de rédaction du message."""
+    """Onglet de redaction du message."""
 
     def __init__(self, parent: ctk.CTkFrame, app_data: AppState):
         self.parent = parent
@@ -35,15 +35,15 @@ class MessageTab:
         self._build_image_section(left)
         self._build_preview_section(left)
 
-        # Panneau droit - SMTP
+        # Panneau droit - Config email
         right = ctk.CTkFrame(container, width=380)
         right.pack(side="right", fill="y", padx=(10, 0))
         right.pack_propagate(False)
 
-        self._build_smtp_section(right)
+        self._build_config_section(right)
 
     def _build_message_section(self, parent: ctk.CTkFrame):
-        """Section de rédaction du message."""
+        """Section de redaction du message."""
         ctk.CTkLabel(
             parent,
             text="Rediger le message",
@@ -147,7 +147,6 @@ class MessageTab:
 
     def _build_preview_section(self, parent: ctk.CTkFrame):
         """Section de preview du mail."""
-        # Header avec bouton
         header = ctk.CTkFrame(parent, fg_color="transparent")
         header.pack(fill="x", padx=20, pady=(5, 3))
 
@@ -166,11 +165,9 @@ class MessageTab:
             command=self._update_preview
         ).pack(side="right")
 
-        # Zone de preview avec scroll
         preview_frame = ctk.CTkFrame(parent, fg_color="#f8fafc", corner_radius=8)
         preview_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
 
-        # Objet preview
         self.preview_subject = ctk.CTkLabel(
             preview_frame,
             text="Objet: ---",
@@ -180,10 +177,8 @@ class MessageTab:
         )
         self.preview_subject.pack(fill="x", padx=12, pady=(10, 3))
 
-        # Separateur
         ctk.CTkFrame(preview_frame, height=1, fg_color="#e2e8f0").pack(fill="x", padx=12, pady=3)
 
-        # Scrollable frame pour body + image
         self.preview_scroll = ctk.CTkScrollableFrame(
             preview_frame,
             fg_color="#f8fafc",
@@ -191,7 +186,6 @@ class MessageTab:
         )
         self.preview_scroll.pack(fill="both", expand=True, padx=5, pady=(0, 10))
 
-        # Corps preview
         self.preview_body = ctk.CTkLabel(
             self.preview_scroll,
             text="",
@@ -202,13 +196,11 @@ class MessageTab:
         )
         self.preview_body.pack(fill="x", padx=8, pady=(5, 10))
 
-        # Image preview placeholder
         self.preview_image_container = ctk.CTkFrame(self.preview_scroll, fg_color="transparent")
         self.preview_image_container.pack(fill="x", padx=8, pady=(0, 10))
 
     def _update_preview(self):
-        """Met à jour la preview avec le premier destinataire ou des données exemple."""
-        # Utiliser le premier destinataire ou des données exemple
+        """Met a jour la preview."""
         if self.app_data.recipients:
             recipient = self.app_data.recipients[0]
         else:
@@ -219,55 +211,45 @@ class MessageTab:
                 numero="12345"
             )
 
-        # Remplacer les placeholders
         subject = EmailService.replace_placeholders(self.subject_entry.get(), recipient)
         body = EmailService.replace_placeholders(self.body_text.get("1.0", "end-1c"), recipient)
 
-        # Mettre à jour l'affichage
         self.preview_subject.configure(text=f"Objet: {subject}")
         self.preview_body.configure(text=body)
 
-        # Mettre à jour l'image
         for widget in self.preview_image_container.winfo_children():
             widget.destroy()
 
         if self.app_data.default_image:
             try:
-                # Charger et redimensionner l'image
                 img = Image.open(io.BytesIO(self.app_data.default_image))
-
-                # Redimensionner pour tenir dans la preview (max 400px de large)
                 max_width = 400
                 if img.width > max_width:
                     ratio = max_width / img.width
                     new_size = (max_width, int(img.height * ratio))
                     img = img.resize(new_size, Image.Resampling.LANCZOS)
 
-                # Convertir en CTkImage
                 ctk_image = ctk.CTkImage(light_image=img, size=(img.width, img.height))
-
-                # Afficher
                 img_label = ctk.CTkLabel(
                     self.preview_image_container,
                     image=ctk_image,
                     text=""
                 )
-                img_label.image = ctk_image  # Garder une reference
+                img_label.image = ctk_image
                 img_label.pack(pady=(5, 0))
 
             except Exception as e:
-                error_label = ctk.CTkLabel(
+                ctk.CTkLabel(
                     self.preview_image_container,
                     text=f"Erreur image: {e}",
                     text_color=COLORS["error"]
-                )
-                error_label.pack()
+                ).pack()
 
-    def _build_smtp_section(self, parent: ctk.CTkFrame):
-        """Section de configuration SMTP."""
+    def _build_config_section(self, parent: ctk.CTkFrame):
+        """Section de configuration email (SMTP ou SendGrid)."""
         ctk.CTkLabel(
             parent,
-            text="Configuration SMTP",
+            text="Configuration Email",
             font=("Segoe UI", 16, "bold")
         ).pack(anchor="w", padx=20, pady=(20, 15))
 
@@ -276,7 +258,7 @@ class MessageTab:
         self.provider_var = ctk.StringVar(value="Gmail")
         self.provider_menu = ctk.CTkOptionMenu(
             parent,
-            values=list(SMTP_PROVIDERS.keys()),
+            values=ALL_PROVIDERS,
             variable=self.provider_var,
             command=self._on_provider_change,
             width=300,
@@ -284,8 +266,12 @@ class MessageTab:
         )
         self.provider_menu.pack(anchor="w", padx=20, pady=(5, 15))
 
+        # === Section SMTP (Gmail, Outlook, etc.) ===
+        self.smtp_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        self.smtp_frame.pack(fill="x")
+
         # Serveur et port
-        server_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        server_frame = ctk.CTkFrame(self.smtp_frame, fg_color="transparent")
         server_frame.pack(fill="x", padx=20, pady=(0, 15))
 
         server_left = ctk.CTkFrame(server_frame, fg_color="transparent")
@@ -306,9 +292,9 @@ class MessageTab:
         self.port_entry.configure(state="disabled")
 
         # Email
-        ctk.CTkLabel(parent, text="Email expediteur", font=("Segoe UI", 11)).pack(anchor="w", padx=20)
+        ctk.CTkLabel(self.smtp_frame, text="Email expediteur", font=("Segoe UI", 11)).pack(anchor="w", padx=20)
         self.email_entry = ctk.CTkEntry(
-            parent,
+            self.smtp_frame,
             height=35,
             width=300,
             placeholder_text="votre.email@gmail.com"
@@ -316,40 +302,92 @@ class MessageTab:
         self.email_entry.pack(anchor="w", padx=20, pady=(5, 15))
 
         # Mot de passe
-        ctk.CTkLabel(parent, text="App Password", font=("Segoe UI", 11)).pack(anchor="w", padx=20)
-        self.password_entry = ctk.CTkEntry(parent, height=35, width=300, show="*")
+        ctk.CTkLabel(self.smtp_frame, text="App Password", font=("Segoe UI", 11)).pack(anchor="w", padx=20)
+        self.password_entry = ctk.CTkEntry(self.smtp_frame, height=35, width=300, show="*")
         self.password_entry.pack(anchor="w", padx=20, pady=(5, 10))
 
         # Info Gmail
-        self.gmail_info = ctk.CTkLabel(
-            parent,
+        self.smtp_info = ctk.CTkLabel(
+            self.smtp_frame,
             text="Gmail : myaccount.google.com/apppasswords",
             font=("Segoe UI", 10),
             text_color=COLORS["primary"],
             justify="left"
         )
-        self.gmail_info.pack(anchor="w", padx=20, pady=(5, 20))
+        self.smtp_info.pack(anchor="w", padx=20, pady=(5, 20))
+
+        # === Section SendGrid ===
+        self.sendgrid_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        # Ne pas pack ici, sera affiche quand SendGrid selectionne
+
+        # API Key
+        ctk.CTkLabel(self.sendgrid_frame, text="API Key", font=("Segoe UI", 11)).pack(anchor="w", padx=20)
+        self.api_key_entry = ctk.CTkEntry(
+            self.sendgrid_frame,
+            height=35,
+            width=300,
+            placeholder_text="SG.xxxxxxxx...",
+            show="*"
+        )
+        self.api_key_entry.pack(anchor="w", padx=20, pady=(5, 15))
+
+        # From Email
+        ctk.CTkLabel(self.sendgrid_frame, text="Email expediteur", font=("Segoe UI", 11)).pack(anchor="w", padx=20)
+        self.sg_email_entry = ctk.CTkEntry(
+            self.sendgrid_frame,
+            height=35,
+            width=300,
+            placeholder_text="contact@mondomaine.com"
+        )
+        self.sg_email_entry.pack(anchor="w", padx=20, pady=(5, 15))
+
+        # Info SendGrid
+        self.sg_info = ctk.CTkLabel(
+            self.sendgrid_frame,
+            text="1. Creer un compte sur sendgrid.com\n2. Settings > API Keys > Create\n3. Coller la cle ici",
+            font=("Segoe UI", 10),
+            text_color=COLORS["primary"],
+            justify="left"
+        )
+        self.sg_info.pack(anchor="w", padx=20, pady=(5, 20))
 
     def _on_provider_change(self, choice: str):
-        """Gère le changement de fournisseur."""
-        server, port = SMTP_PROVIDERS.get(choice, ("", 587))
-
-        self.server_entry.configure(state="normal")
-        self.port_entry.configure(state="normal")
-        self.server_entry.delete(0, "end")
-        self.port_entry.delete(0, "end")
-
-        if choice != "Autre":
-            self.server_entry.insert(0, server)
-            self.port_entry.insert(0, str(port))
-            self.server_entry.configure(state="disabled")
-            self.port_entry.configure(state="disabled")
+        """Gere le changement de fournisseur."""
+        if choice in API_PROVIDERS:
+            # Mode SendGrid
+            self.smtp_frame.pack_forget()
+            self.sendgrid_frame.pack(fill="x")
         else:
-            self.port_entry.insert(0, "587")
+            # Mode SMTP
+            self.sendgrid_frame.pack_forget()
+            self.smtp_frame.pack(fill="x")
 
-        self.gmail_info.configure(
-            text="Gmail : myaccount.google.com/apppasswords" if choice == "Gmail" else ""
-        )
+            server, port = SMTP_PROVIDERS.get(choice, ("", 587))
+
+            self.server_entry.configure(state="normal")
+            self.port_entry.configure(state="normal")
+            self.server_entry.delete(0, "end")
+            self.port_entry.delete(0, "end")
+
+            if choice != "Autre":
+                self.server_entry.insert(0, server)
+                self.port_entry.insert(0, str(port))
+                self.server_entry.configure(state="disabled")
+                self.port_entry.configure(state="disabled")
+            else:
+                self.port_entry.insert(0, "587")
+
+            self.smtp_info.configure(
+                text="Gmail : myaccount.google.com/apppasswords" if choice == "Gmail" else ""
+            )
+
+    def get_provider_type(self) -> str:
+        """Retourne le type de provider selectionne."""
+        return self.provider_var.get()
+
+    def is_sendgrid(self) -> bool:
+        """True si SendGrid est selectionne."""
+        return self.provider_var.get() in API_PROVIDERS
 
     def get_subject(self) -> str:
         """Retourne l'objet du mail."""
@@ -376,9 +414,17 @@ class MessageTab:
         return int(port or 587)
 
     def get_email(self) -> str:
-        """Retourne l'email expéditeur."""
+        """Retourne l'email expediteur."""
         return self.email_entry.get()
 
     def get_password(self) -> str:
         """Retourne le mot de passe."""
         return self.password_entry.get()
+
+    def get_api_key(self) -> str:
+        """Retourne l'API Key SendGrid."""
+        return self.api_key_entry.get()
+
+    def get_sg_email(self) -> str:
+        """Retourne l'email expediteur SendGrid."""
+        return self.sg_email_entry.get()

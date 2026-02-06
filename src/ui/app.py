@@ -5,7 +5,7 @@ Application principale Mail Sender.
 import customtkinter as ctk
 
 from ..config import COLORS
-from ..models import AppState, SMTPConfig
+from ..models import AppState, SMTPConfig, SendGridConfig
 from .theme import setup_theme
 from .tabs import DataTab, MessageTab, SendTab
 
@@ -63,16 +63,22 @@ class MailSenderApp(ctk.CTk):
 
     def _get_config(self, get_message: bool = False):
         """
-        Retourne la configuration SMTP.
+        Retourne la configuration email.
 
         Args:
-            get_message: Si True, retourne aussi (subject, body)
+            get_message: Si True, retourne (subject, body)
 
         Returns:
-            SMTPConfig ou tuple (subject, body)
+            SMTPConfig ou SendGridConfig, ou tuple (subject, body)
         """
         if get_message:
             return self.message_tab.get_subject(), self.message_tab.get_body()
+
+        if self.message_tab.is_sendgrid():
+            return SendGridConfig(
+                api_key=self.message_tab.get_api_key(),
+                from_email=self.message_tab.get_sg_email()
+            )
 
         return SMTPConfig(
             server=self.message_tab.get_smtp_server(),

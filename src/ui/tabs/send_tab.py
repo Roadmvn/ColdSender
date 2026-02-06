@@ -10,7 +10,7 @@ from tkinter import ttk, messagebox
 from PIL import Image
 
 from ...config import COLORS
-from ...models import AppState, SMTPConfig, Recipient, SendStatus
+from ...models import AppState, SMTPConfig, SendGridConfig, Recipient, SendStatus
 from ...services import EmailService
 
 
@@ -200,13 +200,27 @@ class SendTab:
         self.failed_list.delete("1.0", "end")
         self.failed_list.configure(state="disabled")
 
+    def _send_email(self, config, recipient, subject, body, default_image, personal_images):
+        """Envoie un email via le bon provider."""
+        if isinstance(config, SendGridConfig):
+            return EmailService.send_sendgrid(
+                config, recipient, subject, body,
+                default_image=default_image,
+                personal_images=personal_images
+            )
+        return EmailService.send(
+            config, recipient, subject, body,
+            default_image=default_image,
+            personal_images=personal_images
+        )
+
     def _send_test(self):
         """Envoie un email de test."""
         config = self.get_config()
 
         if not config.is_valid():
             self.send_status.configure(
-                text="Configure le SMTP (onglet Message)",
+                text="Configure l'email (onglet Message)",
                 text_color=COLORS["error"]
             )
             return
@@ -215,32 +229,32 @@ class SendTab:
         self._clear_logs()
         self.parent.update()
 
+        # Email du test = email de l'expediteur
+        test_email = config.from_email if isinstance(config, SendGridConfig) else config.email
+
         test_recipient = Recipient(
-            email=config.email,
+            email=test_email,
             nom="Dupont",
             prenom="Jean",
             numero="12345"
         )
 
         subject, body = self.get_config(get_message=True)
-        success, error = EmailService.send(
-            config,
-            test_recipient,
-            subject,
-            body,
+        success, error = self._send_email(
+            config, test_recipient, subject, body,
             default_image=self.app_data.default_image,
             personal_images=None
         )
 
         if success:
             self.send_status.configure(
-                text=f"Test envoye a {config.email}",
+                text=f"Test envoye a {test_email}",
                 text_color=COLORS["success"]
             )
-            self._log_success(f"{config.email} (TEST)")
+            self._log_success(f"{test_email} (TEST)")
         else:
             self.send_status.configure(text=f"Erreur: {error}", text_color=COLORS["error"])
-            self._log_failed(f"{config.email}: {error}")
+            self._log_failed(f"{test_email}: {error}")
 
     def _send_all(self):
         """Envoie les emails a tous les destinataires."""
@@ -248,7 +262,7 @@ class SendTab:
 
         if not config.is_valid():
             self.send_status.configure(
-                text="Configure le SMTP (onglet Message)",
+                text="Configure l'email (onglet Message)",
                 text_color=COLORS["error"]
             )
             return
@@ -262,7 +276,11 @@ class SendTab:
 
         def do_send():
             self._clear_logs()
-            self.send_status.configure(text="Envoi en cours...", text_color=COLORS["primary"])
+            provider_name = "SendGrid" if isinstance(config, SendGridConfig) else "SMTP"
+            self.send_status.configure(
+                text=f"Envoi en cours via {provider_name}...",
+                text_color=COLORS["primary"]
+            )
             self.progress.set(0)
 
             subject, body = self.get_config(get_message=True)
@@ -273,7 +291,7 @@ class SendTab:
 
             for idx, recipient in enumerate(self.app_data.recipients):
                 # Image par defaut + images personnalisees du destinataire
-                success, error = EmailService.send(
+                success, error = self._send_email(
                     config,
                     recipient,
                     subject,
