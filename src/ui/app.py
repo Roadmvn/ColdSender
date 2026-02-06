@@ -5,7 +5,7 @@ Application principale Mail Sender.
 import customtkinter as ctk
 
 from ..config import COLORS
-from ..models import AppState, SMTPConfig, SendGridConfig
+from ..models import AppState, SMTPConfig, SendGridConfig, GmailAPIConfig
 from .theme import setup_theme
 from .tabs import DataTab, MessageTab, SendTab
 
@@ -73,6 +73,12 @@ class MailSenderApp(ctk.CTk):
         """
         if get_message:
             return self.message_tab.get_subject(), self.message_tab.get_body()
+
+        if self.message_tab.is_gmail_api():
+            return GmailAPIConfig(
+                email=self.message_tab.get_gmail_api_email(),
+                credentials_path=self.message_tab.get_gmail_credentials_path()
+            )
 
         if self.message_tab.is_sendgrid():
             return SendGridConfig(

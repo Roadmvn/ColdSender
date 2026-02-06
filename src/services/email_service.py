@@ -7,6 +7,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
+from email.utils import formatdate, make_msgid
 from typing import Optional, Tuple, List
 
 from sendgrid import SendGridAPIClient
@@ -15,7 +16,7 @@ from sendgrid.helpers.mail import (
     FileType, Disposition, ContentId, Content, MimeType
 )
 
-from ..models import SMTPConfig, SendGridConfig, Recipient
+from ..models import SMTPConfig, SendGridConfig, GmailAPIConfig, Recipient
 
 
 class EmailService:
@@ -91,52 +92,77 @@ class EmailService:
             personalized_subject = EmailService.replace_placeholders(subject, recipient)
             personalized_body = EmailService.replace_placeholders(body, recipient)
 
-            # Creer le message
-            msg = MIMEMultipart('related')
+            # Structure MIME correcte pour Outlook:
+            # multipart/mixed
+            #   multipart/alternative
+            #     text/plain
+            #     multipart/related
+            #       text/html
+            #       images inline
+            msg = MIMEMultipart('mixed')
             msg['From'] = config.email
             msg['To'] = recipient.email
             msg['Subject'] = personalized_subject
+            msg['Date'] = formatdate(localtime=True)
+            msg['Message-ID'] = make_msgid(domain=config.email.split('@')[-1])
+            msg['MIME-Version'] = '1.0'
 
-            # Construire les tags images
+            # Partie alternative (texte + html)
+            alt_part = MIMEMultipart('alternative')
+
+            # Version texte (obligatoire pour passer les filtres Outlook)
+            alt_part.attach(MIMEText(personalized_body, 'plain', 'utf-8'))
+
+            # Version HTML avec images
             img_tags = ""
             if default_image:
                 img_tags += "<br><img src='cid:default_image' style='max-width: 600px;'>"
-
-            # Ajouter les images personnalisees
             if personal_images:
                 for idx, (img_data, img_name) in enumerate(personal_images):
                     img_tags += f"<br><img src='cid:personal_{idx}' style='max-width: 600px;'>"
 
-            html_body = f"""
-            <html><body>
-            <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-            {personalized_body.replace(chr(10), '<br>')}
-            </div>
-            {img_tags}
-            </body></html>
-            """
-            msg.attach(MIMEText(html_body, 'html'))
+            html_body = f"""\
+<html><body>
+<div style="font-family: Arial, sans-serif; line-height: 1.6;">
+{personalized_body.replace(chr(10), '<br>')}
+</div>
+{img_tags}
+</body></html>"""
 
-            # Attacher l'image par defaut
-            if default_image:
-                img = MIMEImage(default_image)
-                img.add_header('Content-ID', '<default_image>')
-                img.add_header('Content-Disposition', 'inline', filename='default.png')
-                msg.attach(img)
+            if default_image or personal_images:
+                # Si images: related contient html + images
+                related_part = MIMEMultipart('related')
+                related_part.attach(MIMEText(html_body, 'html', 'utf-8'))
 
-            # Attacher les images personnalisees
-            if personal_images:
-                for idx, (img_data, img_name) in enumerate(personal_images):
-                    img = MIMEImage(img_data)
-                    img.add_header('Content-ID', f'<personal_{idx}>')
-                    img.add_header('Content-Disposition', 'inline', filename=img_name)
-                    msg.attach(img)
+                if default_image:
+                    img = MIMEImage(default_image)
+                    img.add_header('Content-ID', '<default_image>')
+                    img.add_header('Content-Disposition', 'inline', filename='default.png')
+                    related_part.attach(img)
 
-            # Envoyer
-            with smtplib.SMTP(config.server, config.port) as server:
-                server.starttls()
-                server.login(config.email, config.password)
-                server.send_message(msg)
+                if personal_images:
+                    for idx, (img_data, img_name) in enumerate(personal_images):
+                        img = MIMEImage(img_data)
+                        img.add_header('Content-ID', f'<personal_{idx}>')
+                        img.add_header('Content-Disposition', 'inline', filename=img_name)
+                        related_part.attach(img)
+
+                alt_part.attach(related_part)
+            else:
+                alt_part.attach(MIMEText(html_body, 'html', 'utf-8'))
+
+            msg.attach(alt_part)
+
+            # Envoyer (SSL sur port 465, STARTTLS sur 587)
+            if config.port == 465:
+                with smtplib.SMTP_SSL(config.server, config.port) as server:
+                    server.login(config.email, config.password)
+                    server.send_message(msg)
+            else:
+                with smtplib.SMTP(config.server, config.port) as server:
+                    server.starttls()
+                    server.login(config.email, config.password)
+                    server.send_message(msg)
 
             return True, None
 
@@ -223,6 +249,119 @@ class EmailService:
                 return True, None
             else:
                 return False, f"SendGrid erreur {response.status_code}: {response.body}"
+
+        except Exception as e:
+            return False, str(e)
+
+    # Cache du service Gmail API (evite de re-authentifier a chaque envoi)
+    _gmail_service = None
+
+    @staticmethod
+    def _get_gmail_service(credentials_path: str = ""):
+        """Obtient ou cree le service Gmail API avec OAuth2."""
+        if EmailService._gmail_service is not None:
+            return EmailService._gmail_service
+
+        import os
+        from google.auth.transport.requests import Request
+        from google.oauth2.credentials import Credentials
+        from google_auth_oauthlib.flow import InstalledAppFlow
+        from googleapiclient.discovery import build
+
+        SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+
+        creds = None
+        token_path = os.path.join(os.path.dirname(credentials_path) if credentials_path else '.', 'token.json')
+
+        if os.path.exists(token_path):
+            creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                if not credentials_path or not os.path.exists(credentials_path):
+                    raise FileNotFoundError(
+                        "credentials.json introuvable. Telecharge-le depuis Google Cloud Console."
+                    )
+                flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
+                creds = flow.run_local_server(port=0)
+
+            with open(token_path, 'w') as token:
+                token.write(creds.to_json())
+
+        EmailService._gmail_service = build('gmail', 'v1', credentials=creds)
+        return EmailService._gmail_service
+
+    @staticmethod
+    def send_gmail_api(
+        config: 'GmailAPIConfig',
+        recipient: Recipient,
+        subject: str,
+        body: str,
+        default_image: Optional[bytes] = None,
+        personal_images: Optional[List[Tuple[bytes, str]]] = None
+    ) -> Tuple[bool, Optional[str]]:
+        """Envoie un email via Gmail API (identique au navigateur)."""
+        try:
+            service = EmailService._get_gmail_service(config.credentials_path)
+
+            personalized_subject = EmailService.replace_placeholders(subject, recipient)
+            personalized_body = EmailService.replace_placeholders(body, recipient)
+
+            msg = MIMEMultipart('mixed')
+            msg['From'] = config.email
+            msg['To'] = recipient.email
+            msg['Subject'] = personalized_subject
+
+            alt_part = MIMEMultipart('alternative')
+            alt_part.attach(MIMEText(personalized_body, 'plain', 'utf-8'))
+
+            img_tags = ""
+            if default_image:
+                img_tags += "<br><img src='cid:default_image' style='max-width: 600px;'>"
+            if personal_images:
+                for idx, (img_data, img_name) in enumerate(personal_images):
+                    img_tags += f"<br><img src='cid:personal_{idx}' style='max-width: 600px;'>"
+
+            html_body = f"""\
+<html><body>
+<div style="font-family: Arial, sans-serif; line-height: 1.6;">
+{personalized_body.replace(chr(10), '<br>')}
+</div>
+{img_tags}
+</body></html>"""
+
+            if default_image or personal_images:
+                related_part = MIMEMultipart('related')
+                related_part.attach(MIMEText(html_body, 'html', 'utf-8'))
+
+                if default_image:
+                    img = MIMEImage(default_image)
+                    img.add_header('Content-ID', '<default_image>')
+                    img.add_header('Content-Disposition', 'inline', filename='default.png')
+                    related_part.attach(img)
+
+                if personal_images:
+                    for idx, (img_data, img_name) in enumerate(personal_images):
+                        img = MIMEImage(img_data)
+                        img.add_header('Content-ID', f'<personal_{idx}>')
+                        img.add_header('Content-Disposition', 'inline', filename=img_name)
+                        related_part.attach(img)
+
+                alt_part.attach(related_part)
+            else:
+                alt_part.attach(MIMEText(html_body, 'html', 'utf-8'))
+
+            msg.attach(alt_part)
+
+            raw_message = base64.urlsafe_b64encode(msg.as_bytes()).decode('utf-8')
+            service.users().messages().send(
+                userId='me',
+                body={'raw': raw_message}
+            ).execute()
+
+            return True, None
 
         except Exception as e:
             return False, str(e)

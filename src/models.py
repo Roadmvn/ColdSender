@@ -52,6 +52,17 @@ class SendGridConfig:
 
 
 @dataclass
+class GmailAPIConfig:
+    """Configuration Gmail API (OAuth2)."""
+    email: str = ""
+    credentials_path: str = ""
+
+    def is_valid(self) -> bool:
+        """Verifie si la configuration est complete."""
+        return bool(self.email)
+
+
+@dataclass
 class AppState:
     """État global de l'application."""
     smtp: SMTPConfig = field(default_factory=SMTPConfig)
