@@ -412,7 +412,7 @@ class PreviewDialog(ctk.CTkToplevel):
 
         self.images_scroll = ctk.CTkScrollableFrame(
             preview_frame,
-            fg_color=COLORS["light_gray"],
+            fg_color="transparent",
             corner_radius=8,
             height=200
         )

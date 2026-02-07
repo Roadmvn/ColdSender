@@ -42,11 +42,22 @@ class MailSenderApp(ctk.CTk):
             text_color="white"
         ).pack(side="left", padx=25, pady=15)
 
+        # Toggle dark/light mode
+        self.theme_switch = ctk.CTkSwitch(
+            header,
+            text="Mode sombre",
+            font=("Segoe UI", 12),
+            text_color="white",
+            command=self._toggle_theme,
+            onvalue=1,
+            offvalue=0
+        )
+        self.theme_switch.pack(side="right", padx=25, pady=15)
+
     def _build_tabs(self):
         """Construit les onglets."""
         self.tabview = ctk.CTkTabview(
             self,
-            segmented_button_fg_color="#e5e7eb",
             segmented_button_selected_color=COLORS["primary"]
         )
         self.tabview.pack(fill="both", expand=True, padx=20, pady=20)
@@ -60,6 +71,13 @@ class MailSenderApp(ctk.CTk):
         self.data_tab = DataTab(tab_data, self.app_data)
         self.message_tab = MessageTab(tab_message, self.app_data)
         self.send_tab = SendTab(tab_send, self.app_data, self._get_config)
+
+    def _toggle_theme(self):
+        """Bascule entre mode clair et sombre."""
+        if self.theme_switch.get() == 1:
+            ctk.set_appearance_mode("dark")
+        else:
+            ctk.set_appearance_mode("light")
 
     def _get_config(self, get_message: bool = False):
         """

@@ -178,7 +178,7 @@ class DataTab:
         # Zone scrollable pour les images
         self.images_scroll = ctk.CTkScrollableFrame(
             parent,
-            fg_color=COLORS["light_gray"],
+            fg_color="transparent",
             corner_radius=8,
             height=300
         )

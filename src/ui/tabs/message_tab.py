@@ -51,13 +51,13 @@ class MessageTab:
         ).pack(anchor="w", padx=20, pady=(15, 8))
 
         # Info variables
-        info = ctk.CTkFrame(parent, fg_color="#fef3c7", corner_radius=8)
+        info = ctk.CTkFrame(parent, corner_radius=8)
         info.pack(fill="x", padx=20, pady=(0, 8))
         ctk.CTkLabel(
             info,
             text="Variables : {{nom}}  {{prenom}}  {{numero}}  {{email}}",
             font=("Segoe UI", 11),
-            text_color="#92400e"
+            text_color=COLORS["warning"]
         ).pack(padx=15, pady=6)
 
         # Objet
@@ -84,7 +84,7 @@ class MessageTab:
 
     def _build_image_section(self, parent: ctk.CTkFrame):
         """Section de selection d'image."""
-        frame = ctk.CTkFrame(parent, fg_color=COLORS["light_gray"], corner_radius=8)
+        frame = ctk.CTkFrame(parent, corner_radius=8)
         frame.pack(fill="x", padx=20, pady=(0, 8))
 
         header = ctk.CTkFrame(frame, fg_color="transparent")
@@ -165,7 +165,7 @@ class MessageTab:
             command=self._update_preview
         ).pack(side="right")
 
-        preview_frame = ctk.CTkFrame(parent, fg_color="#f8fafc", corner_radius=8)
+        preview_frame = ctk.CTkFrame(parent, corner_radius=8)
         preview_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
 
         self.preview_subject = ctk.CTkLabel(
@@ -177,11 +177,11 @@ class MessageTab:
         )
         self.preview_subject.pack(fill="x", padx=12, pady=(10, 3))
 
-        ctk.CTkFrame(preview_frame, height=1, fg_color="#e2e8f0").pack(fill="x", padx=12, pady=3)
+        ctk.CTkFrame(preview_frame, height=1, fg_color=COLORS["gray"]).pack(fill="x", padx=12, pady=3)
 
         self.preview_scroll = ctk.CTkScrollableFrame(
             preview_frame,
-            fg_color="#f8fafc",
+            fg_color="transparent",
             corner_radius=0
         )
         self.preview_scroll.pack(fill="both", expand=True, padx=5, pady=(0, 10))
