@@ -303,8 +303,19 @@ class MessageTab:
 
         # Mot de passe
         ctk.CTkLabel(self.smtp_frame, text="App Password", font=("Segoe UI", 11)).pack(anchor="w", padx=20)
-        self.password_entry = ctk.CTkEntry(self.smtp_frame, height=35, width=300, show="*")
-        self.password_entry.pack(anchor="w", padx=20, pady=(5, 10))
+        pw_frame = ctk.CTkFrame(self.smtp_frame, fg_color="transparent")
+        pw_frame.pack(anchor="w", padx=20, pady=(5, 10))
+        self.password_entry = ctk.CTkEntry(pw_frame, height=35, width=250, show="*")
+        self.password_entry.pack(side="left")
+        self._pw_visible = False
+        self.pw_toggle_btn = ctk.CTkButton(
+            pw_frame,
+            text="Voir",
+            width=45,
+            height=35,
+            command=self._toggle_password
+        )
+        self.pw_toggle_btn.pack(side="left", padx=(5, 0))
 
         # Info Gmail
         self.smtp_info = ctk.CTkLabel(
@@ -315,6 +326,17 @@ class MessageTab:
             justify="left"
         )
         self.smtp_info.pack(anchor="w", padx=20, pady=(5, 20))
+
+    def _toggle_password(self):
+        """Affiche/masque le mot de passe."""
+        if self._pw_visible:
+            self.password_entry.configure(show="*")
+            self.pw_toggle_btn.configure(text="Voir")
+            self._pw_visible = False
+        else:
+            self.password_entry.configure(show="")
+            self.pw_toggle_btn.configure(text="Cacher")
+            self._pw_visible = True
 
     def _on_provider_change(self, choice: str):
         """Gere le changement de fournisseur."""
