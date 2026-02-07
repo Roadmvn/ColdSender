@@ -10,11 +10,8 @@ SMTP_PROVIDERS = {
     "Autre": ("", 587),
 }
 
-# Fournisseurs API (pas de SMTP)
-API_PROVIDERS = ["Gmail (API)", "SendGrid"]
-
 # Tous les fournisseurs
-ALL_PROVIDERS = list(SMTP_PROVIDERS.keys()) + API_PROVIDERS
+ALL_PROVIDERS = list(SMTP_PROVIDERS.keys())
 
 # Couleurs du thème
 COLORS = {

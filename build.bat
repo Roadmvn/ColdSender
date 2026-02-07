@@ -20,7 +20,7 @@ echo   [1/4] Installation des outils
 echo ----------------------------------------
 echo.
 
-python -m pip install customtkinter pandas openpyxl Pillow sendgrid google-auth-oauthlib google-api-python-client pyinstaller
+python -m pip install customtkinter pandas openpyxl Pillow pyinstaller
 
 echo.
 echo ----------------------------------------
@@ -36,13 +36,6 @@ python -m PyInstaller --onefile --windowed --name "ColdSender" ^
     --hidden-import=openpyxl ^
     --hidden-import=PIL ^
     --hidden-import=PIL.Image ^
-    --hidden-import=sendgrid ^
-    --hidden-import=google.auth ^
-    --hidden-import=google.auth.transport ^
-    --hidden-import=google.auth.transport.requests ^
-    --hidden-import=google.oauth2.credentials ^
-    --hidden-import=google_auth_oauthlib.flow ^
-    --hidden-import=googleapiclient.discovery ^
     --collect-all customtkinter ^
     --add-data "src;src" ^
     main.py

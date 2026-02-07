@@ -40,26 +40,6 @@ class SMTPConfig:
         return all([self.server, self.email, self.password])
 
 
-@dataclass
-class SendGridConfig:
-    """Configuration SendGrid API."""
-    api_key: str = ""
-    from_email: str = ""
-
-    def is_valid(self) -> bool:
-        """Verifie si la configuration est complete."""
-        return all([self.api_key, self.from_email])
-
-
-@dataclass
-class GmailAPIConfig:
-    """Configuration Gmail API (OAuth2)."""
-    email: str = ""
-    credentials_path: str = ""
-
-    def is_valid(self) -> bool:
-        """Verifie si la configuration est complete."""
-        return bool(self.email)
 
 
 @dataclass
@@ -67,16 +47,6 @@ class AppState:
     """État global de l'application."""
     smtp: SMTPConfig = field(default_factory=SMTPConfig)
     recipients: List[Recipient] = field(default_factory=list)
-    subject: str = "Invitation - {{prenom}} {{nom}}"
-    body: str = """Bonjour {{prenom}} {{nom}},
-
-Vous êtes cordialement invité(e) à notre événement !
-
-Votre numéro d'enregistrement : {{numero}}
-
-Merci de conserver ce numéro, il vous sera demandé à l'entrée.
-
-À très bientôt !
-
-L'équipe organisatrice"""
+    subject: str = ""
+    body: str = ""
     default_image: Optional[bytes] = None

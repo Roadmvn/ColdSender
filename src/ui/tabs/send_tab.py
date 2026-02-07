@@ -10,7 +10,7 @@ from tkinter import ttk, messagebox
 from PIL import Image
 
 from ...config import COLORS
-from ...models import AppState, SMTPConfig, SendGridConfig, GmailAPIConfig, Recipient, SendStatus
+from ...models import AppState, SMTPConfig, Recipient, SendStatus
 from ...services import EmailService
 
 
@@ -201,19 +201,7 @@ class SendTab:
         self.failed_list.configure(state="disabled")
 
     def _send_email(self, config, recipient, subject, body, default_image, personal_images):
-        """Envoie un email via le bon provider."""
-        if isinstance(config, GmailAPIConfig):
-            return EmailService.send_gmail_api(
-                config, recipient, subject, body,
-                default_image=default_image,
-                personal_images=personal_images
-            )
-        if isinstance(config, SendGridConfig):
-            return EmailService.send_sendgrid(
-                config, recipient, subject, body,
-                default_image=default_image,
-                personal_images=personal_images
-            )
+        """Envoie un email via SMTP."""
         return EmailService.send(
             config, recipient, subject, body,
             default_image=default_image,
@@ -235,11 +223,7 @@ class SendTab:
         self._clear_logs()
         self.parent.update()
 
-        # Email du test = email de l'expediteur
-        if isinstance(config, SendGridConfig):
-            test_email = config.from_email
-        else:
-            test_email = config.email
+        test_email = config.email
 
         test_recipient = Recipient(
             email=test_email,
@@ -285,14 +269,8 @@ class SendTab:
 
         def do_send():
             self._clear_logs()
-            if isinstance(config, GmailAPIConfig):
-                provider_name = "Gmail API"
-            elif isinstance(config, SendGridConfig):
-                provider_name = "SendGrid"
-            else:
-                provider_name = "SMTP"
             self.send_status.configure(
-                text=f"Envoi en cours via {provider_name}...",
+                text="Envoi en cours...",
                 text_color=COLORS["primary"]
             )
             self.progress.set(0)

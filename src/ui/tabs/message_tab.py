@@ -8,7 +8,7 @@ import customtkinter as ctk
 from tkinter import filedialog
 from PIL import Image, ImageTk
 
-from ...config import COLORS, SMTP_PROVIDERS, API_PROVIDERS, ALL_PROVIDERS
+from ...config import COLORS, SMTP_PROVIDERS, ALL_PROVIDERS
 from ...models import AppState, Recipient
 from ...services import EmailService
 
@@ -246,7 +246,7 @@ class MessageTab:
                 ).pack()
 
     def _build_config_section(self, parent: ctk.CTkFrame):
-        """Section de configuration email (SMTP ou SendGrid)."""
+        """Section de configuration email SMTP."""
         ctk.CTkLabel(
             parent,
             text="Configuration Email",
@@ -316,150 +316,26 @@ class MessageTab:
         )
         self.smtp_info.pack(anchor="w", padx=20, pady=(5, 20))
 
-        # === Section SendGrid ===
-        self.sendgrid_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        # Ne pas pack ici, sera affiche quand SendGrid selectionne
-
-        # API Key
-        ctk.CTkLabel(self.sendgrid_frame, text="API Key", font=("Segoe UI", 11)).pack(anchor="w", padx=20)
-        self.api_key_entry = ctk.CTkEntry(
-            self.sendgrid_frame,
-            height=35,
-            width=300,
-            placeholder_text="SG.xxxxxxxx...",
-            show="*"
-        )
-        self.api_key_entry.pack(anchor="w", padx=20, pady=(5, 15))
-
-        # From Email
-        ctk.CTkLabel(self.sendgrid_frame, text="Email expediteur", font=("Segoe UI", 11)).pack(anchor="w", padx=20)
-        self.sg_email_entry = ctk.CTkEntry(
-            self.sendgrid_frame,
-            height=35,
-            width=300,
-            placeholder_text="contact@mondomaine.com"
-        )
-        self.sg_email_entry.pack(anchor="w", padx=20, pady=(5, 15))
-
-        # Info SendGrid
-        self.sg_info = ctk.CTkLabel(
-            self.sendgrid_frame,
-            text="1. Creer un compte sur sendgrid.com\n2. Settings > API Keys > Create\n3. Coller la cle ici",
-            font=("Segoe UI", 10),
-            text_color=COLORS["primary"],
-            justify="left"
-        )
-        self.sg_info.pack(anchor="w", padx=20, pady=(5, 20))
-
-        # === Section Gmail API ===
-        self.gmail_api_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        # Ne pas pack ici, sera affiche quand Gmail (API) selectionne
-
-        # Email
-        ctk.CTkLabel(self.gmail_api_frame, text="Email Gmail", font=("Segoe UI", 11)).pack(anchor="w", padx=20)
-        self.gmail_api_email_entry = ctk.CTkEntry(
-            self.gmail_api_frame,
-            height=35,
-            width=300,
-            placeholder_text="votre.email@gmail.com"
-        )
-        self.gmail_api_email_entry.pack(anchor="w", padx=20, pady=(5, 15))
-
-        # Credentials file
-        ctk.CTkLabel(self.gmail_api_frame, text="Fichier credentials.json", font=("Segoe UI", 11)).pack(anchor="w", padx=20)
-
-        cred_frame = ctk.CTkFrame(self.gmail_api_frame, fg_color="transparent")
-        cred_frame.pack(fill="x", padx=20, pady=(5, 15))
-
-        self.gmail_cred_entry = ctk.CTkEntry(
-            cred_frame,
-            height=35,
-            width=220,
-            placeholder_text="chemin vers credentials.json"
-        )
-        self.gmail_cred_entry.pack(side="left", padx=(0, 10))
-
-        ctk.CTkButton(
-            cred_frame,
-            text="Parcourir",
-            width=80,
-            height=35,
-            command=self._pick_credentials
-        ).pack(side="left")
-
-        # Info Gmail API
-        self.gmail_api_info = ctk.CTkLabel(
-            self.gmail_api_frame,
-            text="1. console.cloud.google.com > Nouveau projet\n2. Activer l'API Gmail\n3. Identifiants > OAuth > App de bureau\n4. Telecharger credentials.json",
-            font=("Segoe UI", 10),
-            text_color=COLORS["primary"],
-            justify="left"
-        )
-        self.gmail_api_info.pack(anchor="w", padx=20, pady=(5, 20))
-
     def _on_provider_change(self, choice: str):
         """Gere le changement de fournisseur."""
-        # Cacher toutes les sections
-        self.smtp_frame.pack_forget()
-        self.sendgrid_frame.pack_forget()
-        self.gmail_api_frame.pack_forget()
+        server, port = SMTP_PROVIDERS.get(choice, ("", 587))
 
-        if choice == "Gmail (API)":
-            self.gmail_api_frame.pack(fill="x")
-        elif choice == "SendGrid":
-            self.sendgrid_frame.pack(fill="x")
+        self.server_entry.configure(state="normal")
+        self.port_entry.configure(state="normal")
+        self.server_entry.delete(0, "end")
+        self.port_entry.delete(0, "end")
+
+        if choice != "Autre":
+            self.server_entry.insert(0, server)
+            self.port_entry.insert(0, str(port))
+            self.server_entry.configure(state="disabled")
+            self.port_entry.configure(state="disabled")
         else:
-            # Mode SMTP
-            self.smtp_frame.pack(fill="x")
+            self.port_entry.insert(0, "587")
 
-            server, port = SMTP_PROVIDERS.get(choice, ("", 587))
-
-            self.server_entry.configure(state="normal")
-            self.port_entry.configure(state="normal")
-            self.server_entry.delete(0, "end")
-            self.port_entry.delete(0, "end")
-
-            if choice != "Autre":
-                self.server_entry.insert(0, server)
-                self.port_entry.insert(0, str(port))
-                self.server_entry.configure(state="disabled")
-                self.port_entry.configure(state="disabled")
-            else:
-                self.port_entry.insert(0, "587")
-
-            self.smtp_info.configure(
-                text="Gmail : myaccount.google.com/apppasswords" if choice == "Gmail" else ""
-            )
-
-    def _pick_credentials(self):
-        """Selectionne le fichier credentials.json."""
-        file = filedialog.askopenfilename(
-            filetypes=[("JSON", "*.json")],
-            title="Selectionner credentials.json"
+        self.smtp_info.configure(
+            text="Gmail : myaccount.google.com/apppasswords" if choice == "Gmail" else ""
         )
-        if file:
-            self.gmail_cred_entry.delete(0, "end")
-            self.gmail_cred_entry.insert(0, file)
-
-    def get_provider_type(self) -> str:
-        """Retourne le type de provider selectionne."""
-        return self.provider_var.get()
-
-    def is_sendgrid(self) -> bool:
-        """True si SendGrid est selectionne."""
-        return self.provider_var.get() == "SendGrid"
-
-    def is_gmail_api(self) -> bool:
-        """True si Gmail (API) est selectionne."""
-        return self.provider_var.get() == "Gmail (API)"
-
-    def get_gmail_api_email(self) -> str:
-        """Retourne l'email Gmail API."""
-        return self.gmail_api_email_entry.get()
-
-    def get_gmail_credentials_path(self) -> str:
-        """Retourne le chemin vers credentials.json."""
-        return self.gmail_cred_entry.get()
 
     def get_subject(self) -> str:
         """Retourne l'objet du mail."""
@@ -493,10 +369,3 @@ class MessageTab:
         """Retourne le mot de passe."""
         return self.password_entry.get()
 
-    def get_api_key(self) -> str:
-        """Retourne l'API Key SendGrid."""
-        return self.api_key_entry.get()
-
-    def get_sg_email(self) -> str:
-        """Retourne l'email expediteur SendGrid."""
-        return self.sg_email_entry.get()
