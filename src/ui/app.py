@@ -79,6 +79,11 @@ class MailSenderApp(ctk.CTk):
         else:
             ctk.set_appearance_mode("light")
 
+        # ttk widgets (ex: Treeview) ne suivent pas CustomTkinter: re-synchroniser.
+        if hasattr(self, "data_tab"):
+            self.data_tab.apply_theme()
+        self.update_idletasks()
+
     def _get_config(self, get_message: bool = False):
         """
         Retourne la configuration email.

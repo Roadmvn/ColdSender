@@ -467,7 +467,7 @@ class PreviewDialog(ctk.CTkToplevel):
 
     def _add_image_preview(self, title: str, img_data: bytes, color: str):
         """Ajoute une preview d'image."""
-        card = ctk.CTkFrame(self.images_scroll, fg_color="white", corner_radius=8)
+        card = ctk.CTkFrame(self.images_scroll, fg_color=("white", "#111827"), corner_radius=8)
         card.pack(fill="x", padx=5, pady=5)
 
         try:

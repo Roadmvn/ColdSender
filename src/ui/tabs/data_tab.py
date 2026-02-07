@@ -20,6 +20,8 @@ class DataTab:
         self.parent = parent
         self.app_data = app_data
         self.selected_image_index = None
+        self._ttk_style = None
+        self._tree_style = "Recipients.Treeview"
         self._build()
 
     def _build(self):
@@ -126,15 +128,22 @@ class DataTab:
         ).pack(side="left")
 
         # Treeview
-        tree_container = ctk.CTkFrame(frame, fg_color="white", corner_radius=8)
+        tree_container = ctk.CTkFrame(frame, fg_color=("white", "#111827"), corner_radius=8)
         tree_container.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
-        style = ttk.Style()
-        style.theme_use("clam")
-        style.configure("Treeview", rowheight=28, font=("Segoe UI", 10))
-        style.configure("Treeview.Heading", font=("Segoe UI", 10, "bold"))
+        # ttk (Treeview) ne suit pas automatiquement le mode sombre CustomTkinter.
+        self._ttk_style = ttk.Style()
+        try:
+            self._ttk_style.theme_use("clam")
+        except Exception:
+            pass
 
-        self.tree = ttk.Treeview(tree_container, show="headings", height=12)
+        self.tree = ttk.Treeview(
+            tree_container,
+            show="headings",
+            height=12,
+            style=self._tree_style,
+        )
         self.tree.pack(fill="both", expand=True, padx=5, pady=5)
 
         self.tree.bind("<<TreeviewSelect>>", self._on_selection_change)
@@ -158,6 +167,9 @@ class DataTab:
         self.tree.column('prenom', width=100, anchor="w")
         self.tree.column('numero', width=70, anchor="w")
         self.tree.column('images', width=100, anchor="center")
+
+        # Appliquer le thème courant (clair/sombre) au Treeview.
+        self.apply_theme()
 
     def _build_image_preview_section(self, parent: ctk.CTkFrame):
         """Section preview des images du destinataire selectionne."""
@@ -241,7 +253,7 @@ class DataTab:
 
     def _create_image_card(self, idx: int, img_data: bytes, img_name: str, recipient: Recipient):
         """Cree une carte pour une image."""
-        card = ctk.CTkFrame(self.images_scroll, fg_color="white", corner_radius=8)
+        card = ctk.CTkFrame(self.images_scroll, fg_color=("white", "#111827"), corner_radius=8)
         card.pack(fill="x", padx=5, pady=5)
 
         # Preview de l'image
@@ -426,6 +438,76 @@ class DataTab:
                 del self.app_data.recipients[idx]
             self._update_preview()
             self._clear_images_preview()
+
+    def apply_theme(self):
+        """
+        Synchronise le style ttk (Treeview) avec le mode clair/sombre CustomTkinter.
+
+        Note: ttk n'est pas géré par CustomTkinter, il faut donc forcer les couleurs.
+        """
+        if not self._ttk_style:
+            return
+
+        mode = ctk.get_appearance_mode().lower()
+        is_dark = mode.startswith("dark")
+
+        if is_dark:
+            bg = "#111827"          # gray-900
+            fg = "#e5e7eb"          # gray-200
+            heading_bg = "#1f2937"  # gray-800
+            heading_fg = "#e5e7eb"
+            border = "#374151"      # gray-700
+            selected_bg = "#2563eb"  # blue-600
+            selected_fg = "#ffffff"
+        else:
+            bg = "#ffffff"
+            fg = "#111827"          # gray-900
+            heading_bg = "#e5e7eb"  # gray-200
+            heading_fg = "#111827"
+            border = "#d1d5db"      # gray-300
+            selected_bg = COLORS["primary"]
+            selected_fg = "#ffffff"
+
+        tree_style = self._tree_style
+        heading_style = f"{self._tree_style}.Heading"
+
+        self._ttk_style.configure(
+            tree_style,
+            rowheight=28,
+            font=("Segoe UI", 10),
+            background=bg,
+            fieldbackground=bg,
+            foreground=fg,
+            bordercolor=border,
+            lightcolor=border,
+            darkcolor=border,
+            relief="flat",
+            borderwidth=0,
+        )
+        self._ttk_style.map(
+            tree_style,
+            background=[("selected", selected_bg)],
+            foreground=[("selected", selected_fg)],
+        )
+
+        self._ttk_style.configure(
+            heading_style,
+            font=("Segoe UI", 10, "bold"),
+            background=heading_bg,
+            foreground=heading_fg,
+            relief="flat",
+            borderwidth=0,
+        )
+        self._ttk_style.map(
+            heading_style,
+            background=[("active", heading_bg)],
+            foreground=[("active", heading_fg)],
+        )
+
+        try:
+            self.tree.update_idletasks()
+        except Exception:
+            pass
 
 
 class RecipientDialog(ctk.CTkToplevel):
