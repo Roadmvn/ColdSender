@@ -47,6 +47,6 @@ class AppState:
     """État global de l'application."""
     smtp: SMTPConfig = field(default_factory=SMTPConfig)
     recipients: List[Recipient] = field(default_factory=list)
-    subject: str = ""
-    body: str = ""
+    subject: str = "Information importante"
+    body: str = "Bonjour {{prenom}},\n\nJ'espere que vous allez bien.\n\nJe me permets de vous contacter concernant votre dossier.\nN'hesitez pas a revenir vers moi si vous avez des questions.\n\nBien cordialement,\nL'equipe"
     default_image: Optional[bytes] = None
