@@ -28,6 +28,7 @@ class MailSenderApp(ctk.CTk):
         """Construit l'interface utilisateur."""
         self._build_header()
         self._build_tabs()
+        self._build_footer()
 
     def _build_header(self):
         """Construit l'en-tête."""
@@ -71,6 +72,15 @@ class MailSenderApp(ctk.CTk):
         self.data_tab = DataTab(tab_data, self.app_data)
         self.message_tab = MessageTab(tab_message, self.app_data)
         self.send_tab = SendTab(tab_send, self.app_data, self._get_config)
+
+    def _build_footer(self):
+        """Ajoute la signature en bas a droite."""
+        ctk.CTkLabel(
+            self,
+            text="by Tudy Gbaguidi  |  AKA Roadmvn on GitHub",
+            font=("Segoe UI", 13),
+            text_color=COLORS["gray"]
+        ).pack(anchor="e", padx=15, pady=(0, 8))
 
     def _toggle_theme(self):
         """Bascule entre mode clair et sombre."""
